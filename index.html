@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Alignism - Sequence Alignment</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        h1 { margin-bottom: 5px; }
+        .subtitle { color: #666; margin-bottom: 20px; }
+        .panel { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; color: #444; font-size: 1.2em; }
+        textarea { width: 100%; height: 180px; font-family: monospace; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; padding: 10px; resize: vertical; }
+        button { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer; }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .btn-secondary { background: #6b7280; padding: 8px 16px; font-size: 14px; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn-small { background: #6b7280; padding: 6px 12px; font-size: 12px; }
+        .btn-small:hover { background: #4b5563; }
+        .input-tabs { display: flex; gap: 4px; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 0; }
+        .input-tab { padding: 8px 16px; background: #e5e7eb; color: #374151; cursor: pointer; border-radius: 6px 6px 0 0; font-size: 13px; border: none; }
+        .input-tab.active { background: #374151; color: white; }
+        .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+        .status.loading { background: #fef3c7; color: #92400e; }
+        .status.success { background: #d1fae5; color: #065f46; }
+        .status.error { background: #fee2e2; color: #991b1b; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #92400e; border-radius: 50%; width: 18px; height: 18px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .alignment-display { background: #f9fafb; padding: 15px; border-radius: 4px; overflow: auto; font-size: 12px; line-height: 1.8; font-family: 'Courier New', monospace; white-space: pre; max-height: 500px; border: 1px solid #e5e7eb; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 0; }
+        .tab { padding: 10px 20px; border: none; background: #e5e7eb; color: #374151; cursor: pointer; border-radius: 6px 6px 0 0; font-size: 14px; }
+        .tab.active { background: #374151; color: white; }
+        .controls { display: flex; gap: 20px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .controls label { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+        .controls select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .controls input[type="range"] { width: 120px; }
+        #treeSvg { background: white; border: 1px solid #e5e7eb; border-radius: 4px; width: 100%; max-height: 600px; overflow: auto; }
+        .example-link { font-size: 13px; color: #666; margin-top: 10px; }
+        .example-link a { color: #2563eb; cursor: pointer; }
+        details { margin-top: 15px; }
+        details summary { cursor: pointer; font-weight: 500; color: #374151; }
+        details pre { background: #f9fafb; padding: 15px; border-radius: 4px; overflow: auto; font-size: 11px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div style="display: flex; align-items: flex-end; gap: 3px; margin-bottom: 5px;">
+    <svg viewBox="545 620 280 310" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 33px; margin-bottom: 4px;">
+        <defs>
+            <path id="p" d="M 741 732 C 670 651 583 723 583 795 C 588 909 750 910 750 810 C 743 702 791 711 799 788 C 800 878 753 872 750 810 L 750 863 Q 753 895 780 888"/>
+            <linearGradient id="g" y2="1">
+                <stop offset="0" stop-color="#4ECDC4"/>
+                <stop offset="1" stop-color="#96E6A1"/>
+            </linearGradient>
+        </defs>
+        <use href="#p" fill="none" stroke="#000" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+        <use href="#p" fill="none" stroke="url(#g)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1 style="color: #333; font-size: 2rem; font-weight: 300; letter-spacing: 0.1em; margin: 0 0 0 6px;">alignism</h1>
+</div>
+<p class="subtitle">Multiple sequence alignment with Kalign and phylogenetic trees with FastTree</p>
+
+<div class="panel">
+    <h2>Input Sequences</h2>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <div class="input-tabs" id="inputTabsContainer" style="margin-bottom:0;">
+            <span class="input-tab active" id="inputTab" onclick="showInputTab('input')">input</span>
+            <span class="input-tab" id="fastaTab" onclick="showInputTab('fasta')" style="display:none;">→ fasta</span>
+            <span class="input-tab" id="proteinTab" onclick="showInputTab('protein')" style="display:none;">→ protein</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button class="btn-small" id="translateBtn" onclick="translateDNA()" style="display:none;">Translate DNA</button>
+            <button class="btn-small" id="convertBtn" onclick="convertToFasta()" style="display:none;">Convert to FASTA</button>
+        </div>
+    </div>
+    <textarea id="seqInput" placeholder="Paste FASTA sequences, raw sequences, or CSV/TSV format here..."></textarea>
+    <textarea id="fastaInput" style="display:none; background:#fffbeb;"></textarea>
+    <textarea id="proteinInput" style="display:none; background:#f0fdf4;"></textarea>
+    <div class="btn-row">
+        <button id="runBtn" onclick="runAlignment()">Run Alignment</button>
+        <button id="treeBtn" class="btn-secondary" onclick="runTree()" style="display:none;">Build Tree</button>
+    </div>
+    <div id="statusContainer"></div>
+    <div class="example-link">
+        Examples: <span id="examples-list">loading...</span>
+        <a href="#" onclick="saveCurrentSequence(); return false;" style="margin-left:8px;color:#16a34a;" title="Save current sequence">[+]</a>
+        <span id="undo-btn" style="display:none;"><a href="#" onclick="undoDelete(); return false;" style="margin-left:8px;color:#666;" title="Undo delete">[undo]</a></span>
+    </div>
+</div>
+
+<div class="panel" id="outputPanel" style="display:none;">
+    <div class="tabs">
+        <button class="tab active" id="alignmentTab" onclick="showTab('alignment')">Alignment</button>
+        <button class="tab" id="treeTab" onclick="showTab('tree')" style="display:none;">Tree</button>
+    </div>
+
+    <div id="alignmentView">
+        <div class="controls">
+            <label>Color: <select id="colorScheme" onchange="updateDisplay()">
+                <option value="none">None</option>
+                <option value="aa" selected>By residue</option>
+                <option value="property">By property</option>
+            </select></label>
+            <label>Zoom: <input type="range" id="zoomSlider" min="50" max="150" value="100" oninput="updateZoom()"> <span id="zoomValue">100%</span></label>
+        </div>
+        <div id="output" class="alignment-display"></div>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+            <button class="btn-small" onclick="copyAsCSV(this)">Copy as CSV</button>
+            <button class="btn-small" onclick="copyAsFasta(this)">Copy as FASTA</button>
+        </div>
+    </div>
+
+    <div id="treeView" style="display:none;">
+        <div class="controls">
+            <label><input type="checkbox" id="alignLeaves" onchange="updateTreeLayout()"> Align leaves</label>
+        </div>
+        <div id="treeSvg"></div>
+        <details>
+            <summary>Newick format</summary>
+            <pre id="treeOutput"></pre>
+        </details>
+    </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://biowasm.com/cdn/v3/aioli.js"></script>
+<script>
+let CLI = null;
+let currentAlignment = null;
+let currentTree = null;
+let lastDeleted = null;
+
+const defaultExamples = {
+    'RAS family': `>KRAS_human
+MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDTKQAQDLARSYGIPFIETSAKTRQGVDDAFYTLVREIRKHKEKMSKDGKKKKKKSKTKCVIM
+>NRAS_human
+MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNSKSFADINLYREQIKRVKDSDDVPMVLVGNKCDLPTRTVDTKQAHELAKSYGIPFIETSAKTRQGVEDAFYTLVREIRQYRLKKISKEEKTPGCVKIKKCIIM
+>HRAS_human
+MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHQYREQIKRVKDSDDVPMVLVGNKCDLAARTVESRQAQDLARSYGIPYIETSAKTRQGVEDAFYTLVREIRQHKLRKLNPPDESGPGCMSCKCVLS
+>RRAS_human
+MSSGAASGTGRGRPRGGGPGPGDPPPSETHKLVVVGGGGVGKSALTIQFIQSYFVSDYDPTIEDSYTKICSVDGIPARLDILDTAGQEEFGAMREQYMRAGHGFLLVFAINDRASFEEISTRIYRVQSQAPSAAQGRNLGLSGRKVPFIEAKSTRNQGVDDAFYTLVREIRKRRSQNRSKYGIPFIETSAKDVSNVVFVGNKCDLETGRGSTPMPGRKQS
+>MRAS_human
+MATSAVPSDNLPTYKLVVVGDGGVGKSALTIQFFQKIFVPDYDPTIEDSYLKHTEIDNQWAILDVLDTAGQEEFSAMREQYMRTGDGFLIVYSVTDKASFEHVNRFYQLVRRQIPASRQGISLSREKVPFIEVTSKPNAAHAAASRNPFLILGNKIDLENRQVATKAVGQECKEKYGIPFIETSAKDAANVVFMETAKELRHHAKEKESKGCNLS
+>RAP1A_human
+MREYKLVVLGSGGVGKSALTVQFVQGIFVEKYDPTIEDSYRKQVEVDCQQCMLEILDTAGTEQFTAMRDLYMKNGQGFALVYSITAQSTFNDLQDLREQILRVKDTEDVPMILVGNKCDLEDERVVGKEQGQNLARQWCNCAFLESSAKSKINVNEIFYDLVRQINRKTPVEKKKPKKKSCLLL
+>RAP2A_human
+MREYKVVVLGSGGVGKSALTVQFVTGTFIEKYDPTIEDFYRKEIEVDSSPSVLEILDTAGTEQFASMRDLYIKNGQGFILVYSLVNQQSFQDIKPMRDQIIRVKRYEKVPVILVGNKVDLESEREVSSSEGRALAQEWSCSFQESGSGDLFTFLMRDILRNQPSTRPTGPGGGSDTVFV
+>RALA_human
+MAANKPKGQNSLALHKVIMVGSGGVGKSALTLQFMYDEFVEDYEPTKADSYRKKVVLDGEEVQIDILDTAGQEDYAAIRDNYFRSGEGFLCVFSITEMESFAATADFREQILRVKEDENVPFLLVGNKSDLEDKRQVSVEEAKNRAEQWNVNYVETSAKTRANVDKVFFDLMREIRARKMEDSKEKNGKKKRKSLAKRIRERCCIL`,
+    'Globin_DNA': `>HBA_human
+ATGGTGCTGTCTCCTGCCGACAAGACCAACGTCAAGGCCGCCTGGGGTAAGGTCGGCGCGCACGCTGGCGAGTATGGTGCGGAGGCCCTGGAGAGGATGTTCCTGTCCTTCCCCACCACCAAGACCTACTTCCCGCACTTCGACCTGAGCCACGGCTCTGCCCAGGTTAAGGGCCACGGCAAGAAGGTGGCCGACGCGCTGACCAACGCCGTGGCGCACGTGGACGACATGCCCAACGCGCTGTCCGCCCTGAGCGACCTGCACGCGCACAAGCTTCGGGTGGACCCGGTCAACTTCAAGCTCCTAAGCCACTGCCTGCTGGTGACCCTGGCCGCCCACCTCCCCGCCGAGTTCACCCCTGCGGTGCACGCCTCCCTGGACAAGTTCCTGGCTTCTGTGAGCACCGTGCTGACCTCCAAATACCGTTAA
+>HBB_human
+ATGGTGCACCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAACGTGGATGAAGTTGGTGGTGAGGCCCTGGGCAGGCTGCTGGTGGTCTACCCTTGGACCCAGAGGTTCTTTGAGTCCTTTGGGGATCTGTCCACTCCTGATGCTGTTATGGGCAACCCTAAGGTGAAGGCTCATGGCAAGAAAGTGCTCGGTGCCTTTAGTGATGGCCTGGCTCACCTGGACAACCTCAAGGGCACCTTTGCCACACTGAGTGAGCTGCACTGTGACAAGCTGCACGTGGATCCTGAGAACTTCAGGCTCCTGGGCAACGTGCTGGTCTGTGTGCTGGCCCATCACTTTGGCAAAGAATTCACCCCACCAGTGCAGGCTGCCTATCAGAAAGTGGTGGCTGGTGTGGCTAATGCCCTGGCCCACAAGTATCACTAA
+>HBA_mouse
+ATGGTGCTCTCTGGGGAAGACAAAAGCAACATCAAGGCTGCCTGGGGGAAGATTGGTGGCCATGGTGCTGAATATGGAGCTGAAGCCCTGGAAAGGATGTTTGCTAGCTTCCCCACCACCAAGACCTACTTTCCTCACTTTGATGTAAGCCACGGCTCTGCCCAGGTCAAGGGTCACGGCAAGAAGGTCGCCGATGCGCTGGCCAGTGCTGCAGGCCACCTCGATGACCTGCCCGGTGCCTTGTCTGCTCTGAGCGACCTGCATGCTCACAAGCTGCGTGTGGATCCCGTCAACTTCAAGTTCCTGAGCCACTGCCTGCTGGTGACCTTGGCTAGCCACCACCCTGCCGATTTCACCCCCGCGGTACATGCCTCTCTGGACAAATTCCTTGCCTCTGTGAGCACCGTGCTGACCTCCAAGTACCGTTAA
+>HBB_mouse
+ATGGTGCACCTGACTGATGCTGAGAAGGCTGCTGTTAATGGCCTGTGGGGAAAGGTGAACTCCGATGAAGTTGGTGGTGAGGCCCTGGGCAGGCTGCTGGTTGTCTACCCTTGGACCCAGCGGTACTTTGATAGCTTTGGGGACCTGTCCTCTGCAGATGCAGTTATGGGCAACCCTAAGGTGAAGGCTCATGGCAAGAAAGTGATAAACGCCTTTAGTGATGGCCTGGCTCACCTGGACAACCTCAAGGGCACCTTTGCTCAGCTGAGTGAGCTGCACTGTGACAAGCTGCATGTGGATCCTGAGAACTTCAGGCTCCTGGGCAACATGATTGTGATTGTGTTGGGCCACCACCTGGGCAAGGAATTCTCCCCCTGTGCACAGGCTGCCTTCCAGAAGGTGGTGGCTGGAGTGGCCAGTGCCCTGGCTCACAAGTACCACTAA
+>HBA_chicken
+ATGGTGCACTGGACTGCTGAGGAGAAGCAGCTCATCACCGGCCTCTGGGGCAAGGTCAATGTGGCCGAATGTGGGGCCGAAGCCCTGGCCAGGCTGCTGATCGTCTACCCCTGGACTCAGAGGTTCTTTGAGAGCTTTGGAGATCTGTCGACCACTGACGCTGTCATGGGCAACCCCCGGGTCAAGGCCCATGGCAAGAAAGTGTTGAGTGCCTTCAGTGAGGGCCTGAGTGCCCTGCCCAACATCCAGGGCACCTTTGCCAGCCTCAGTGAGCTCCACTGTGACAAGCTGCATGTGGATCCTGTCAACTTCAAGGCCCTTGTGCACTGCCTGCTGGTGACCCTGGCCGCTCACCTCCCCGCCGAGTTCACCCCTGCTGTCCATGCCACCCTGGACAAGTTCCTGGCCACTGTGTCCACCGTGGTGACTTCCAAATACCGCTAA`
+};
+
+function getExamples() {
+    try { return JSON.parse(localStorage.getItem('alignism-examples') || '{}'); }
+    catch (e) { return {}; }
+}
+
+function saveExamples(examples) {
+    localStorage.setItem('alignism-examples', JSON.stringify(examples));
+}
+
+function getHiddenDefaults() {
+    try { return JSON.parse(localStorage.getItem('alignism-hidden') || '[]'); }
+    catch (e) { return []; }
+}
+
+function saveHiddenDefaults(hidden) {
+    localStorage.setItem('alignism-hidden', JSON.stringify(hidden));
+}
+
+function loadExamples() {
+    const container = document.getElementById('examples-list');
+    const hidden = getHiddenDefaults();
+    const visibleDefaults = Object.keys(defaultExamples).filter(n => !hidden.includes(n));
+    let html = visibleDefaults.map(name =>
+        `<a href="#" onclick="loadExample('${name}'); return false;">${name}</a><a href="#" onclick="deleteExample('${name}', true); return false;" style="color:#999;text-decoration:none;" title="Delete ${name}">[×]</a>`
+    ).join(' ');
+    const userExamples = getExamples();
+    const userNames = Object.keys(userExamples).sort();
+    if (userNames.length > 0) {
+        if (html) html += ' | ';
+        html += userNames.map(name =>
+            `<a href="#" onclick="loadExample('${name}'); return false;">${name}</a><a href="#" onclick="deleteExample('${name}', false); return false;" style="color:#999;text-decoration:none;" title="Delete ${name}">[×]</a>`
+        ).join(' ');
+    }
+    if (!html) html = '<span style="color:#999;">none</span>';
+    container.innerHTML = html;
+}
+
+window.loadExample = function(name) {
+    // Reset to input tab
+    document.getElementById('fastaTab').style.display = 'none';
+    document.getElementById('proteinTab').style.display = 'none';
+    showInputTab('input');
+
+    if (defaultExamples[name]) {
+        document.getElementById('seqInput').value = defaultExamples[name];
+    } else {
+        const examples = getExamples();
+        if (examples[name]) {
+            document.getElementById('seqInput').value = examples[name];
+        }
+    }
+    updateUI();
+}
+
+window.saveCurrentSequence = function() {
+    const fasta = document.getElementById('seqInput').value.trim();
+    if (!fasta) { alert('No sequence to save'); return; }
+    const match = fasta.match(/^>([^\n\r]+)/);
+    let name = match ? match[1].split(/\s/)[0].split('|')[0].substring(0, 30) : 'sequence';
+    name = name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const examples = getExamples();
+    examples[name] = fasta;
+    saveExamples(examples);
+    loadExamples();
+    document.getElementById('undo-btn').style.display = 'none';
+}
+
+window.deleteExample = function(name, isDefault) {
+    if (isDefault) {
+        const hidden = getHiddenDefaults();
+        if (!hidden.includes(name)) {
+            hidden.push(name);
+            saveHiddenDefaults(hidden);
+        }
+        lastDeleted = { name, isDefault: true };
+    } else {
+        const examples = getExamples();
+        if (examples[name]) lastDeleted = { name, fasta: examples[name], isDefault: false };
+        delete examples[name];
+        saveExamples(examples);
+    }
+    loadExamples();
+    document.getElementById('undo-btn').style.display = 'inline';
+}
+
+window.undoDelete = function() {
+    if (!lastDeleted) return;
+    if (lastDeleted.isDefault) {
+        const hidden = getHiddenDefaults();
+        const idx = hidden.indexOf(lastDeleted.name);
+        if (idx > -1) hidden.splice(idx, 1);
+        saveHiddenDefaults(hidden);
+    } else {
+        const examples = getExamples();
+        examples[lastDeleted.name] = lastDeleted.fasta;
+        saveExamples(examples);
+    }
+    lastDeleted = null;
+    document.getElementById('undo-btn').style.display = 'none';
+    loadExamples();
+}
+
+const GENETIC_CODE = {
+    'TTT':'F','TTC':'F','TTA':'L','TTG':'L','TCT':'S','TCC':'S','TCA':'S','TCG':'S',
+    'TAT':'Y','TAC':'Y','TAA':'*','TAG':'*','TGT':'C','TGC':'C','TGA':'*','TGG':'W',
+    'CTT':'L','CTC':'L','CTA':'L','CTG':'L','CCT':'P','CCC':'P','CCA':'P','CCG':'P',
+    'CAT':'H','CAC':'H','CAA':'Q','CAG':'Q','CGT':'R','CGC':'R','CGA':'R','CGG':'R',
+    'ATT':'I','ATC':'I','ATA':'I','ATG':'M','ACT':'T','ACC':'T','ACA':'T','ACG':'T',
+    'AAT':'N','AAC':'N','AAA':'K','AAG':'K','AGT':'S','AGC':'S','AGA':'R','AGG':'R',
+    'GTT':'V','GTC':'V','GTA':'V','GTG':'V','GCT':'A','GCC':'A','GCA':'A','GCG':'A',
+    'GAT':'D','GAC':'D','GAA':'E','GAG':'E','GGT':'G','GGC':'G','GGA':'G','GGG':'G'
+};
+
+const DNA_COLORS = { A:'#C8E6C8', T:'#FFD1D1', G:'#FFF4CC', C:'#CCE5FF', N:'#E8E8E8', '-':'#FFFFFF' };
+const AA_COLORS = {
+    G:'#F5E6D3', A:'#FFFFCC', V:'#FFFF99', L:'#FFFF99', I:'#FFFF99',
+    F:'#E6D5FF', Y:'#E6D5FF', W:'#DCC8FF',
+    S:'#CCF5E6', T:'#CCF5E6', N:'#B3EFD9', Q:'#B3EFD9', C:'#FFEECC',
+    K:'#C8D9FF', R:'#C8D9FF', H:'#D9E5FF',
+    D:'#FFCCCC', E:'#FFCCCC',
+    M:'#FFE0B3', P:'#FFD4E5', '-':'#FFFFFF'
+};
+const PROPERTY_MAP = {
+    hydrophobic: ['A','V','I','L','M','F','W','P'], polar: ['S','T','N','Q','C'],
+    positive: ['K','R','H'], negative: ['D','E'], special: ['G','Y'], gap: ['-']
+};
+const PROPERTY_COLORS = { hydrophobic:'#FFFF99', polar:'#B3EFD9', positive:'#C8D9FF', negative:'#FFCCCC', special:'#F0F0F0', gap:'#FFFFFF' };
+
+async function initCLI() {
+    if (!CLI) {
+        showStatus('Initializing alignment tools...', 'loading');
+        try {
+            CLI = await new Aioli(['kalign/3.3.1', 'fasttree/2.1.11']);
+            document.getElementById('statusContainer').innerHTML = '';
+        } catch (e) {
+            showStatus('Error initializing: ' + e.message, 'error');
+            throw e;
+        }
+    }
+    return CLI;
+}
+
+function showStatus(msg, type) {
+    const spinner = type === 'loading' ? '<div class="spinner"></div>' : '';
+    document.getElementById('statusContainer').innerHTML = `<div class="status ${type}">${spinner}${msg}</div>`;
+}
+
+function detectSeqType(text) {
+    if (typeof text !== 'string') return 'protein';
+    const seq = text.split('\n').filter(l => !l.startsWith('>')).join('').toUpperCase().replace(/\s/g, '');
+    if (!seq.length) return 'protein';
+    // If any protein-only amino acids present, it's protein
+    if (/[DEFHIKLMPQRSVWY]/.test(seq)) return 'protein';
+    return 'dna';
+}
+
+function parseFasta(text) {
+    if (typeof text !== 'string') return [];
+    const seqs = [], lines = text.split('\n');
+    let cur = null;
+    for (const line of lines) {
+        if (line.startsWith('>')) {
+            if (cur) seqs.push(cur);
+            cur = { name: line.slice(1).trim(), seq: '' };
+        } else if (cur && line.trim()) {
+            cur.seq += line.trim();
+        }
+    }
+    if (cur) seqs.push(cur);
+    return seqs;
+}
+
+function isFasta(text) { return text.trim().split('\n').some(l => l.trim().startsWith('>')); }
+function isRaw(text) {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    return lines.length > 0 && lines.every(l => /^[A-Za-z\-]+$/.test(l.trim()) && !l.startsWith('>'));
+}
+function isDelimited(text) {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length === 0) return false;
+    return lines.every(l => {
+        const parts = l.includes(',') ? l.split(',') : l.includes('\t') ? l.split('\t') : null;
+        if (!parts || parts.length < 2) return false;
+        const seq = parts[1].trim();
+        return seq.length > 0 && /^[A-Za-z\-*]+$/.test(seq);
+    });
+}
+
+function toFasta(text) {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    let fasta = '';
+    if (isRaw(text)) {
+        lines.forEach((l, i) => { fasta += `>seq_${i+1}\n${l.trim()}\n`; });
+    } else if (isDelimited(text)) {
+        lines.forEach(l => {
+            let parts = l.includes(',') ? l.split(',') : l.includes('\t') ? l.split('\t') : l.split(/\s+/);
+            parts = parts.map(p => p.trim()).filter(p => p);
+            if (parts.length >= 2) fasta += `>${parts[0]}\n${parts[1]}\n`;
+        });
+    }
+    return fasta;
+}
+
+function translateSeq(dna) {
+    dna = dna.toUpperCase().replace(/\s/g, '');
+    let prot = '';
+    for (let i = 0; i < dna.length - 2; i += 3) {
+        prot += GENETIC_CODE[dna.slice(i, i+3)] || 'X';
+    }
+    return prot;
+}
+
+function getPropertyColor(aa) {
+    for (const [prop, aas] of Object.entries(PROPERTY_MAP)) {
+        if (aas.includes(aa)) return PROPERTY_COLORS[prop];
+    }
+    return '#FFFFFF';
+}
+
+function displayAlignment(alignment, scheme) {
+    const seqs = parseFasta(alignment);
+    const type = detectSeqType(alignment);
+    const colors = type === 'dna' ? DNA_COLORS : AA_COLORS;
+    const maxLen = Math.max(...seqs.map(s => s.name.length), 15);
+    const out = document.getElementById('output');
+
+    if (scheme === 'none') {
+        out.textContent = seqs.map(s => s.name.padEnd(maxLen) + '  ' + s.seq).join('\n');
+    } else {
+        let html = '';
+        for (const s of seqs) {
+            html += `<span style="font-weight:bold">${s.name.padEnd(maxLen)}</span>  `;
+            let curColor = null, run = '';
+            for (const c of s.seq) {
+                const color = scheme === 'aa' ? (colors[c.toUpperCase()] || '#FFF') : getPropertyColor(c.toUpperCase());
+                if (color === curColor) { run += c; }
+                else {
+                    if (run) html += curColor === '#FFFFFF' ? run : `<span style="background:${curColor}">${run}</span>`;
+                    curColor = color; run = c;
+                }
+            }
+            if (run) html += curColor === '#FFFFFF' ? run : `<span style="background:${curColor}">${run}</span>`;
+            html += '\n';
+        }
+        out.innerHTML = html;
+    }
+}
+
+function renderTree(newick, container, alignLeaves = false) {
+    const el = d3.select(container);
+    el.selectAll('*').remove();
+
+    function parse(s) {
+        let anc = [], tree = {}, tokens = s.split(/\s*(;|\(|\)|,|:)\s*/);
+        for (let i = 0; i < tokens.length; i++) {
+            const t = tokens[i];
+            if (!t || !t.trim()) continue;
+            if (t === '(') { let sub = {}; tree.children = [sub]; anc.push(tree); tree = sub; }
+            else if (t === ',') { let p = anc[anc.length-1], sib = {}; p.children.push(sib); tree = sib; }
+            else if (t === ')') { tree = anc.pop(); }
+            else if (t === ':') { i++; if (i < tokens.length && tokens[i]) tree.length = parseFloat(tokens[i]); }
+            else if (t !== ';') { tree.name = t; }
+        }
+        return tree;
+    }
+
+    const data = parse(newick);
+    const root = d3.hierarchy(data);
+    const numLeaves = root.leaves().length;
+
+    let w = el.node().getBoundingClientRect().width || 800;
+    const h = Math.max(200, numLeaves * 40 + 40);
+    const margin = { top: 20, right: 150, bottom: 20, left: 20 };
+    const width = w - margin.left - margin.right;
+    const height = h - margin.top - margin.bottom;
+
+    const svg = el.append('svg').attr('width', w).attr('height', h);
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    d3.cluster().size([height, 100])(root);
+
+    function setPos(node, x = 0) {
+        node.phyloX = x;
+        if (node.children) node.children.forEach(c => setPos(c, x + (c.data.length || 0)));
+    }
+    setPos(root);
+
+    const maxDist = Math.max(...root.leaves().map(d => d.phyloX));
+    const scale = (width - 150) / maxDist;
+    root.descendants().forEach(d => { d.y = d.phyloX * scale; });
+    if (alignLeaves) { const maxY = width - 150; root.leaves().forEach(l => { l.y = maxY; }); }
+
+    g.selectAll('.link').data(root.links()).enter().append('path')
+        .attr('d', d => `M${d.source.y},${d.source.x}L${d.source.y},${d.target.x}L${d.target.y},${d.target.x}`)
+        .attr('fill', 'none').attr('stroke', '#374151').attr('stroke-width', 2);
+
+    root.leaves().forEach(l => {
+        g.append('text').attr('x', l.y + 5).attr('y', l.x).attr('dy', '.35em')
+            .style('font-size', '13px').style('font-family', 'monospace').text(l.data.name || '');
+    });
+
+    g.selectAll('.node').data(root.descendants().filter(d => d.children)).enter()
+        .append('circle').attr('cx', d => d.y).attr('cy', d => d.x).attr('r', 3).attr('fill', '#374151');
+}
+
+
+window.showInputTab = function(tab) {
+    const seqInput = document.getElementById('seqInput');
+    const fastaInput = document.getElementById('fastaInput');
+    const proteinInput = document.getElementById('proteinInput');
+    const inputTab = document.getElementById('inputTab');
+    const fastaTab = document.getElementById('fastaTab');
+    const proteinTab = document.getElementById('proteinTab');
+
+    seqInput.style.display = 'none';
+    fastaInput.style.display = 'none';
+    proteinInput.style.display = 'none';
+    inputTab.className = 'input-tab';
+    fastaTab.className = 'input-tab';
+    proteinTab.className = 'input-tab';
+
+    if (tab === 'input') {
+        seqInput.style.display = 'block';
+        inputTab.className = 'input-tab active';
+    } else if (tab === 'fasta') {
+        fastaInput.style.display = 'block';
+        fastaTab.className = 'input-tab active';
+    } else if (tab === 'protein') {
+        proteinInput.style.display = 'block';
+        proteinTab.className = 'input-tab active';
+    }
+    updateUI();
+}
+
+window.convertToFasta = function() {
+    const text = document.getElementById('seqInput').value;
+    if (!text.trim()) { showStatus('No sequences to convert', 'error'); return; }
+    const fasta = toFasta(text);
+    if (!fasta) { showStatus('Could not convert to FASTA', 'error'); return; }
+    document.getElementById('fastaInput').value = fasta;
+    document.getElementById('fastaTab').style.display = 'inline-block';
+    showInputTab('fasta');
+}
+
+window.updateUI = function() {
+    const seqInput = document.getElementById('seqInput');
+    const fastaInput = document.getElementById('fastaInput');
+    const convertBtn = document.getElementById('convertBtn');
+    const translateBtn = document.getElementById('translateBtn');
+
+    // Determine which input is visible
+    const visibleInput = seqInput.style.display !== 'none' ? seqInput :
+                         fastaInput.style.display !== 'none' ? fastaInput : null;
+
+    if (!visibleInput) {
+        convertBtn.style.display = 'none';
+        translateBtn.style.display = 'none';
+        return;
+    }
+
+    const text = visibleInput.value;
+
+    if (visibleInput === seqInput) {
+        // Show convert button for raw/delimited input
+        if (text.trim() && (isRaw(text) || isDelimited(text))) {
+            convertBtn.style.display = 'inline-block';
+        } else {
+            convertBtn.style.display = 'none';
+        }
+        // Show translate for DNA FASTA in input
+        if (isFasta(text) && detectSeqType(text) === 'dna') {
+            translateBtn.style.display = 'inline-block';
+        } else {
+            translateBtn.style.display = 'none';
+        }
+    } else if (visibleInput === fastaInput) {
+        convertBtn.style.display = 'none';
+        // Show translate for DNA in FASTA tab
+        if (detectSeqType(text) === 'dna') {
+            translateBtn.style.display = 'inline-block';
+        } else {
+            translateBtn.style.display = 'none';
+        }
+    }
+
+    // Update input tab label
+    const inputTab = document.getElementById('inputTab');
+    const inputText = seqInput.value;
+    if (inputText.trim() && isFasta(inputText)) {
+        inputTab.textContent = detectSeqType(inputText) === 'dna' ? 'DNA' : 'protein';
+    } else {
+        inputTab.textContent = 'input';
+    }
+}
+
+window.translateDNA = function() {
+    const seqInput = document.getElementById('seqInput');
+    const fastaInput = document.getElementById('fastaInput');
+    const text = seqInput.style.display !== 'none' ? seqInput.value : fastaInput.value;
+
+    if (!text.trim()) { showStatus('No sequences to translate', 'error'); return; }
+
+    const seqs = parseFasta(text);
+    let result = '';
+    for (const s of seqs) {
+        result += `>${s.name}_protein\n${translateSeq(s.seq)}\n`;
+    }
+    document.getElementById('proteinInput').value = result;
+    document.getElementById('proteinTab').style.display = 'inline-block';
+    showInputTab('protein');
+}
+
+window.showTab = function(tab) {
+    document.getElementById('alignmentView').style.display = tab === 'alignment' ? 'block' : 'none';
+    document.getElementById('treeView').style.display = tab === 'tree' ? 'block' : 'none';
+    document.getElementById('alignmentTab').className = tab === 'alignment' ? 'tab active' : 'tab';
+    document.getElementById('treeTab').className = tab === 'tree' ? 'tab active' : 'tab';
+}
+
+window.updateDisplay = function() {
+    if (currentAlignment) displayAlignment(currentAlignment, document.getElementById('colorScheme').value);
+}
+
+window.copyAsCSV = function(btn) {
+    if (!currentAlignment) return;
+    const seqs = parseFasta(currentAlignment);
+    const csv = seqs.map(s => `${s.name},${s.seq}`).join('\n');
+    navigator.clipboard.writeText(csv);
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+}
+
+window.copyAsFasta = function(btn) {
+    if (!currentAlignment) return;
+    navigator.clipboard.writeText(currentAlignment);
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+}
+
+window.updateZoom = function() {
+    const z = document.getElementById('zoomSlider').value;
+    document.getElementById('zoomValue').textContent = z + '%';
+    const out = document.getElementById('output');
+    out.style.fontSize = (12 * z / 100) + 'px';
+    out.style.lineHeight = 1.8 * z / 100;
+}
+
+window.updateTreeLayout = function() {
+    if (currentTree) renderTree(currentTree, '#treeSvg', document.getElementById('alignLeaves').checked);
+}
+
+window.runAlignment = async function() {
+    const seqInput = document.getElementById('seqInput');
+    const fastaInput = document.getElementById('fastaInput');
+    const proteinInput = document.getElementById('proteinInput');
+
+    // Get text from visible input
+    let text = '';
+    if (proteinInput.style.display !== 'none') {
+        text = proteinInput.value;
+    } else if (fastaInput.style.display !== 'none') {
+        text = fastaInput.value;
+    } else {
+        text = seqInput.value;
+    }
+
+    if (!text.trim()) { showStatus('Please enter sequences', 'error'); return; }
+
+    if (!isFasta(text)) {
+        text = toFasta(text);
+        if (!text) { showStatus('Could not parse input format', 'error'); return; }
+    }
+
+    const seqs = parseFasta(text);
+    if (seqs.length < 2) { showStatus('Need at least 2 sequences', 'error'); return; }
+    const type = detectSeqType(text);
+    const minLen = Math.min(...seqs.map(s => s.seq.length));
+    const minRequired = type === 'dna' ? 6 : 3;
+    if (minLen < minRequired) { showStatus(`Sequences too short (min ${minRequired} for ${type})`, 'error'); return; }
+
+    text = text.replace(/\*/g, '');
+
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('outputPanel').style.display = 'none';
+
+    try {
+        showStatus('Running alignment...', 'loading');
+        const cli = await initCLI();
+        await cli.mount({ name: 'input.fa', data: text });
+
+        const cmd = 'kalign input.fa -f fasta -o result.fasta';
+        await cli.exec(cmd);
+
+        const result = await cli.cat('result.fasta');
+        if (typeof result !== 'string') throw new Error('Alignment failed');
+
+        currentAlignment = result;
+        currentTree = null;
+
+        const scheme = document.getElementById('colorScheme');
+        scheme.options[1].text = type === 'dna' ? 'By nucleotide' : 'By amino acid';
+
+        displayAlignment(result, scheme.value);
+        document.getElementById('outputPanel').style.display = 'block';
+        document.getElementById('treeBtn').style.display = 'inline-block';
+        document.getElementById('treeTab').style.display = 'none';
+        showTab('alignment');
+
+        document.getElementById('statusContainer').innerHTML = '';
+    } catch (e) {
+        showStatus('Error: ' + e.message, 'error');
+    } finally {
+        document.getElementById('runBtn').disabled = false;
+    }
+}
+
+window.runTree = async function() {
+    if (!currentAlignment) { showStatus('Run alignment first', 'error'); return; }
+
+    document.getElementById('treeBtn').disabled = true;
+
+    try {
+        showStatus('Building tree...', 'loading');
+        const cli = await initCLI();
+        await cli.mount({ name: 'alignment.fa', data: currentAlignment });
+
+        const output = await cli.exec('fasttree alignment.fa');
+        const lines = (output.stdout || output).trim().split('\n');
+        let newick = '';
+        for (let i = lines.length - 1; i >= 0; i--) {
+            if (lines[i].trim().startsWith('(') && lines[i].trim().endsWith(';')) {
+                newick = lines[i].trim();
+                break;
+            }
+        }
+
+        if (!newick) throw new Error('Could not parse tree output');
+
+        currentTree = newick;
+        document.getElementById('treeOutput').textContent = output.stdout || output;
+        document.getElementById('treeTab').style.display = 'inline-block';
+        showTab('tree');
+
+        setTimeout(() => renderTree(newick, '#treeSvg', document.getElementById('alignLeaves').checked), 50);
+
+        document.getElementById('statusContainer').innerHTML = '';
+    } catch (e) {
+        showStatus('Error: ' + e.message, 'error');
+    } finally {
+        document.getElementById('treeBtn').disabled = false;
+    }
+}
+
+document.getElementById('seqInput').addEventListener('input', function() {
+    document.getElementById('fastaTab').style.display = 'none';
+    document.getElementById('proteinTab').style.display = 'none';
+    showInputTab('input');
+    updateUI();
+});
+document.getElementById('fastaInput').addEventListener('input', function() {
+    document.getElementById('proteinTab').style.display = 'none';
+    showInputTab('fasta');
+    updateUI();
+});
+loadExamples();
+initCLI();
+</script>
+</body>
+</html>
