@@ -1,5 +1,7 @@
 # Alignism
 
+**[Try it live](https://hgbrian.github.io/alignism/)**
+
 Multiple sequence alignment and phylogenetic tree visualization in the browser.
 
 ![Alignism screenshot](assets/alignism_screenshot.png)
