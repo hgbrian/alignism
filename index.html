@@ -45,19 +45,24 @@
 </head>
 <body>
 
-<div style="display: flex; align-items: flex-end; gap: 3px; margin-bottom: 5px;">
-    <svg viewBox="545 620 280 310" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 33px; margin-bottom: 4px;">
-        <defs>
-            <path id="p" d="M 741 732 C 670 651 583 723 583 795 C 588 909 750 910 750 810 C 743 702 791 711 799 788 C 800 878 753 872 750 810 L 750 863 Q 753 895 780 888"/>
-            <linearGradient id="g" y2="1">
-                <stop offset="0" stop-color="#4ECDC4"/>
-                <stop offset="1" stop-color="#96E6A1"/>
-            </linearGradient>
-        </defs>
-        <use href="#p" fill="none" stroke="#000" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
-        <use href="#p" fill="none" stroke="url(#g)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <h1 style="color: #333; font-size: 2rem; font-weight: 300; letter-spacing: 0.1em; margin: 0 0 0 6px;">alignism</h1>
+<div style="display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 5px;">
+    <div style="display: flex; align-items: flex-end; gap: 3px;">
+        <svg viewBox="545 620 280 310" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 33px; margin-bottom: 4px;">
+            <defs>
+                <path id="p" d="M 741 732 C 670 651 583 723 583 795 C 588 909 750 910 750 810 C 743 702 791 711 799 788 C 800 878 753 872 750 810 L 750 863 Q 753 895 780 888"/>
+                <linearGradient id="g" y2="1">
+                    <stop offset="0" stop-color="#4ECDC4"/>
+                    <stop offset="1" stop-color="#96E6A1"/>
+                </linearGradient>
+            </defs>
+            <use href="#p" fill="none" stroke="#000" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+            <use href="#p" fill="none" stroke="url(#g)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h1 style="color: #333; font-size: 2rem; font-weight: 300; letter-spacing: 0.1em; margin: 0 0 0 6px;">alignism</h1>
+    </div>
+    <a href="https://github.com/hgbrian/alignism" target="_blank" title="View on GitHub" style="color: #666; margin-bottom: 8px;">
+        <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
 </div>
 <p class="subtitle">Multiple sequence alignment with Kalign and phylogenetic trees with FastTree</p>
 
