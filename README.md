@@ -2,6 +2,8 @@
 
 Multiple sequence alignment and phylogenetic tree visualization in the browser.
 
+![Alignism screenshot](assets/alignism_screenshot.png)
+
 Runs **Kalign** for alignment and **FastTree** for tree building via [biowasm](https://biowasm.com/).
 
 
